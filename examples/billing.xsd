@@ -1,0 +1,63 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:tns="https://schemas.example.test/billing/v1"
+    xmlns:common="https://schemas.example.test/common/v1"
+    targetNamespace="https://schemas.example.test/billing/v1" elementFormDefault="qualified">
+    <xs:annotation>
+        <xs:documentation>Invoices, payment terms, and balance details.</xs:documentation>
+    </xs:annotation>
+    <xs:import namespace="https://schemas.example.test/common/v1" schemaLocation="common-types.xsd" />
+    <xs:simpleType name="InvoiceId">
+        <xs:annotation>
+            <xs:documentation>Unique invoice reference.</xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:pattern value="INV-[0-9]{4}-[0-9]{6}" />
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="PaymentState">
+        <xs:annotation>
+            <xs:documentation>Current settlement state.</xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="open" />
+            <xs:enumeration value="partial" />
+            <xs:enumeration value="paid" />
+            <xs:enumeration value="overdue" />
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:complexType name="MoneyType">
+        <xs:annotation>
+            <xs:documentation>Monetary value with decimal precision.</xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="value" type="xs:decimal">
+                <xs:annotation>
+                    <xs:documentation>Amount expressed in the stated currency.</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="currency" type="common:CurrencyCode" />
+        </xs:sequence>
+        <xs:attribute name="scale" type="xs:nonNegativeInteger" default="2" />
+        <xs:attribute name="rounding" type="xs:string" default="half-even" />
+    </xs:complexType>
+    <xs:complexType name="InvoiceType">
+        <xs:annotation>
+            <xs:documentation>Invoice summary and remittance instructions.</xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="id" type="tns:InvoiceId" />
+            <xs:element name="issued" type="xs:date" />
+            <xs:element name="due" type="xs:date" />
+            <xs:element name="total" type="tns:MoneyType" />
+            <xs:element name="memo" type="xs:string" minOccurs="0" />
+        </xs:sequence>
+        <xs:attribute name="state" type="tns:PaymentState" use="required" />
+        <xs:attribute name="accountRef" type="xs:string" use="required" />
+        <xs:attribute name="purchaseOrder" type="xs:string" />
+    </xs:complexType>
+    <xs:element name="invoice" type="tns:InvoiceType">
+        <xs:annotation>
+            <xs:documentation>Customer invoice document.</xs:documentation>
+        </xs:annotation>
+    </xs:element>
+</xs:schema>

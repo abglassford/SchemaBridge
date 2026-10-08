@@ -1,0 +1,33 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:tns="https://schemas.example.test/common/v1"
+    targetNamespace="https://schemas.example.test/common/v1"
+    elementFormDefault="qualified">
+    <xs:annotation>
+        <xs:documentation>Reusable primitive restrictions shared by business schemas.</xs:documentation>
+    </xs:annotation>
+    <xs:simpleType name="CurrencyCode">
+        <xs:annotation>
+            <xs:documentation>Three-letter uppercase ISO-style currency code.</xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[A-Z]{3}" />
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="CountryCode">
+        <xs:annotation>
+            <xs:documentation>Two-letter uppercase country code.</xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:pattern value="[A-Z]{2}" />
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="PostalCode">
+        <xs:annotation>
+            <xs:documentation>Non-empty postal identifier up to twelve characters.</xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:minLength value="1" />
+            <xs:maxLength value="12" />
+        </xs:restriction>
+    </xs:simpleType>
+</xs:schema>

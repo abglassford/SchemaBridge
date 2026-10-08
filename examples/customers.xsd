@@ -1,0 +1,71 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:tns="https://schemas.example.test/customers/v1"
+    targetNamespace="https://schemas.example.test/customers/v1" elementFormDefault="qualified">
+    <xs:annotation>
+        <xs:documentation>Customer identity, contact, and lifecycle records.</xs:documentation>
+    </xs:annotation>
+    <xs:simpleType name="CustomerCode">
+        <xs:annotation>
+            <xs:documentation>Stable public customer identifier.</xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:pattern value="CUS-[0-9]{6}" />
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="CustomerState">
+        <xs:annotation>
+            <xs:documentation>Permitted account lifecycle states.</xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="active" />
+            <xs:enumeration value="paused" />
+            <xs:enumeration value="closed" />
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:complexType name="ContactType">
+        <xs:annotation>
+            <xs:documentation>Reachable customer contact details.</xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="email" type="xs:string">
+                <xs:annotation>
+                    <xs:documentation>Primary email address.</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="phone" type="xs:string" minOccurs="0">
+                <xs:annotation>
+                    <xs:documentation>Optional telephone number.</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+        </xs:sequence>
+        <xs:attribute name="verified" type="xs:boolean" use="required" />
+        <xs:attribute name="channel" type="xs:string" default="web" />
+    </xs:complexType>
+    <xs:complexType name="CustomerType">
+        <xs:annotation>
+            <xs:documentation>Customer profile with an addressable contact.</xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="code" type="tns:CustomerCode">
+                <xs:annotation>
+                    <xs:documentation>Unique customer code.</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="displayName" type="xs:string">
+                <xs:annotation>
+                    <xs:documentation>Name shown to customers.</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="contact" type="tns:ContactType" />
+            <xs:element name="joinedOn" type="xs:date" />
+        </xs:sequence>
+        <xs:attribute name="state" type="tns:CustomerState" use="required" />
+        <xs:attribute name="source" type="xs:string" use="required" />
+        <xs:attribute name="marketingOptIn" type="xs:boolean" default="false" />
+    </xs:complexType>
+    <xs:element name="customer" type="tns:CustomerType">
+        <xs:annotation>
+            <xs:documentation>Top-level customer payload.</xs:documentation>
+        </xs:annotation>
+    </xs:element>
+</xs:schema>

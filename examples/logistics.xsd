@@ -1,0 +1,65 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
+    xmlns:tns="https://schemas.example.test/logistics/v1"
+    xmlns:common="https://schemas.example.test/common/v1"
+    targetNamespace="https://schemas.example.test/logistics/v1" elementFormDefault="qualified">
+    <xs:annotation>
+        <xs:documentation>Shipment tracking, package dimensions, and carrier handoff.</xs:documentation>
+    </xs:annotation>
+    <xs:import namespace="https://schemas.example.test/common/v1" schemaLocation="common-types.xsd" />
+    <xs:simpleType name="TrackingCode">
+        <xs:annotation>
+            <xs:documentation>Carrier-issued tracking reference.</xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:minLength value="8" />
+            <xs:maxLength value="30" />
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:simpleType name="ShipmentState">
+        <xs:annotation>
+            <xs:documentation>Current shipment progress.</xs:documentation>
+        </xs:annotation>
+        <xs:restriction base="xs:string">
+            <xs:enumeration value="labelled" />
+            <xs:enumeration value="inTransit" />
+            <xs:enumeration value="delivered" />
+            <xs:enumeration value="exception" />
+        </xs:restriction>
+    </xs:simpleType>
+    <xs:complexType name="AddressType">
+        <xs:annotation>
+            <xs:documentation>Postal destination for a package.</xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="recipient" type="xs:string" />
+            <xs:element name="street" type="xs:string">
+                <xs:annotation>
+                    <xs:documentation>Street address including unit.</xs:documentation>
+                </xs:annotation>
+            </xs:element>
+            <xs:element name="locality" type="xs:string" />
+            <xs:element name="postalCode" type="common:PostalCode" />
+        </xs:sequence>
+        <xs:attribute name="country" type="common:CountryCode" use="required" />
+        <xs:attribute name="residential" type="xs:boolean" default="true" />
+    </xs:complexType>
+    <xs:complexType name="ShipmentType">
+        <xs:annotation>
+            <xs:documentation>Shipment record and destination address.</xs:documentation>
+        </xs:annotation>
+        <xs:sequence>
+            <xs:element name="tracking" type="tns:TrackingCode" />
+            <xs:element name="carrier" type="xs:string" />
+            <xs:element name="destination" type="tns:AddressType" />
+            <xs:element name="estimatedDelivery" type="xs:date" minOccurs="0" />
+        </xs:sequence>
+        <xs:attribute name="state" type="tns:ShipmentState" use="required" />
+        <xs:attribute name="orderRef" type="xs:string" use="required" />
+        <xs:attribute name="serviceLevel" type="xs:string" default="ground" />
+    </xs:complexType>
+    <xs:element name="shipment" type="tns:ShipmentType">
+        <xs:annotation>
+            <xs:documentation>Shipment status update payload.</xs:documentation>
+        </xs:annotation>
+    </xs:element>
+</xs:schema>
