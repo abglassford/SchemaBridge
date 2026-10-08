@@ -6,6 +6,13 @@
         <xs:documentation>Shipment tracking, package dimensions, and carrier handoff.</xs:documentation>
     </xs:annotation>
     <xs:import namespace="https://schemas.example.test/common/v1" schemaLocation="common-types.xsd" />
+    <xs:import namespace="https://schemas.example.test/customers/v1" schemaLocation="customers.xsd" />
+    <xs:import namespace="https://schemas.example.test/catalog/v1" schemaLocation="catalog.xsd" />
+    <xs:import namespace="https://schemas.example.test/orders/v1" schemaLocation="orders.xsd" />
+    <xs:import namespace="https://schemas.example.test/billing/v1" schemaLocation="billing.xsd" />
+    <xs:import namespace="https://schemas.example.test/inventory/v1" schemaLocation="inventory.xsd" />
+    <xs:import namespace="https://schemas.example.test/learning/v1" schemaLocation="learning.xsd" />
+    <xs:import namespace="https://schemas.example.test/support/v1" schemaLocation="support.xsd" />
     <xs:simpleType name="TrackingCode">
         <xs:annotation>
             <xs:documentation>Carrier-issued tracking reference.</xs:documentation>

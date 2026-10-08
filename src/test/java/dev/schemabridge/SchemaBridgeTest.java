@@ -27,6 +27,14 @@ class SchemaBridgeTest {
     }
 
     @Test
+    void logisticsImportsEightSchemas() throws Exception {
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        Document logistics = factory.newDocumentBuilder().parse(Path.of("examples", "logistics.xsd").toFile());
+        assertEquals(8, logistics.getElementsByTagNameNS(XMLConstants.W3C_XML_SCHEMA_NS_URI, "import").getLength());
+    }
+
+    @Test
     void mergePreservesDocumentationAndAddsJavaProperties() throws Exception {
         Path directory = Files.createTempDirectory("schema-bridge-test-");
         Path original = directory.resolve("original.xsd");
@@ -76,6 +84,42 @@ class SchemaBridgeTest {
         assertFalse(((org.w3c.dom.Element) statusAttribute).hasAttribute("use"));
         assertEquals("legacy", statusAttribute.getAttributes().getNamedItem("default").getNodeValue());
         assertFalse(Files.readAllLines(output).stream().anyMatch(String::isBlank));
+        SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI).newSchema(output.toFile());
+    }
+
+    @Test
+    void mergePreservesImportedSimpleTypeRestrictions() throws Exception {
+        Path directory = Files.createTempDirectory("schema-bridge-import-test-");
+        Path common = directory.resolve("common.xsd");
+        Path original = directory.resolve("original.xsd");
+        Path generated = directory.resolve("generated.xsd");
+        Path output = directory.resolve("result.xsd");
+        Files.writeString(common,
+                """
+                        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:common">
+                          <xs:simpleType name="CodeType"><xs:restriction base="xs:string"><xs:pattern value="[A-Z]+"/></xs:restriction></xs:simpleType>
+                        </xs:schema>
+                        """);
+        Files.writeString(original,
+                """
+                        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:c="urn:common" targetNamespace="urn:test">
+                          <xs:import namespace="urn:common" schemaLocation="common.xsd"/>
+                          <xs:complexType name="RecordType"><xs:sequence><xs:element name="code" type="c:CodeType"/></xs:sequence></xs:complexType>
+                        </xs:schema>
+                        """);
+        Files.writeString(generated,
+                """
+                        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" targetNamespace="urn:test">
+                          <xs:complexType name="RecordType"><xs:sequence><xs:element name="code" type="xs:string"/></xs:sequence></xs:complexType>
+                        </xs:schema>
+                        """);
+
+        SchemaMerger.merge(original, generated, output);
+        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
+        factory.setNamespaceAware(true);
+        Document result = factory.newDocumentBuilder().parse(output.toFile());
+        var code = result.getElementsByTagNameNS(XMLConstants.W3C_XML_SCHEMA_NS_URI, "element").item(0);
+        assertEquals("c:CodeType", code.getAttributes().getNamedItem("type").getNodeValue());
         SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI).newSchema(output.toFile());
     }
 }

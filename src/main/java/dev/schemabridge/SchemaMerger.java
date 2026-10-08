@@ -4,8 +4,11 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.net.URI;
 import javax.xml.namespace.QName;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -70,7 +73,7 @@ final class SchemaMerger {
     }
 
     private static void mergeNamedDeclarations(Document document, Element originalRoot, Element generatedRoot,
-            String localName, DeclarationMerger merger) {
+            String localName, DeclarationMerger merger) throws Exception {
         for (Element generatedDeclaration : directChildren(generatedRoot, localName)) {
             String name = generatedDeclaration.getAttribute("name");
             Element originalDeclaration = directChildren(originalRoot, localName).stream()
@@ -84,7 +87,8 @@ final class SchemaMerger {
         }
     }
 
-    private static void mergeSimpleType(Document document, Element original, Element generated, Element generatedRoot) {
+    private static void mergeSimpleType(Document document, Element original, Element generated, Element generatedRoot)
+            throws Exception {
         Element annotation = directChildren(original, "annotation").stream().findFirst().orElse(null);
         for (Node child : directChildNodes(original)) {
             if (child != annotation) {
@@ -98,7 +102,8 @@ final class SchemaMerger {
         }
     }
 
-    private static void mergeComplexType(Document document, Element original, Element generated, Element generatedRoot) {
+    private static void mergeComplexType(Document document, Element original, Element generated, Element generatedRoot)
+            throws Exception {
         Element generatedParticle = firstParticle(generated);
         if (generatedParticle != null) {
             Element originalParticle = firstParticle(original);
@@ -121,7 +126,8 @@ final class SchemaMerger {
         }
     }
 
-    private static void mergeDeclaration(Document document, Element original, Element generated, Element generatedRoot) {
+    private static void mergeDeclaration(Document document, Element original, Element generated, Element generatedRoot)
+            throws Exception {
         copyMappingAttributes(original, generated);
         for (Element child : directChildren(generated, null)) {
             if (!"annotation".equals(child.getLocalName())
@@ -131,7 +137,8 @@ final class SchemaMerger {
         }
     }
 
-    private static void mergeParticle(Document document, Element original, Element generated, Element generatedRoot) {
+    private static void mergeParticle(Document document, Element original, Element generated, Element generatedRoot)
+            throws Exception {
         List<Element> generatedElements = directChildren(generated, "element");
         Element nextElement = null;
         for (int index = generatedElements.size() - 1; index >= 0; index--) {
@@ -172,7 +179,7 @@ final class SchemaMerger {
         return null;
     }
 
-    private static void copyMappingAttributes(Element original, Element generated) {
+    private static void copyMappingAttributes(Element original, Element generated) throws Exception {
         NamedNodeMap attributes = generated.getAttributes();
         boolean preserveRestrictedType = preservesNamedRestriction(original, generated);
         List<String> staleAttributes = new ArrayList<>();
@@ -200,7 +207,7 @@ final class SchemaMerger {
         }
     }
 
-    private static boolean preservesNamedRestriction(Element original, Element generated) {
+    private static boolean preservesNamedRestriction(Element original, Element generated) throws Exception {
         String originalType = original.getAttribute("type");
         String generatedType = generated.getAttribute("type");
         if (originalType.isBlank() || generatedType.isBlank()) {
@@ -211,19 +218,59 @@ final class SchemaMerger {
         if (XSD.equals(originalName.getNamespaceURI())) {
             return false;
         }
+        String documentUri = original.getOwnerDocument().getDocumentURI();
+        if (documentUri == null) {
+            return false;
+        }
+        QName restrictionBase = findSimpleTypeBase(Path.of(URI.create(documentUri)), originalName, new HashSet<>());
+        return restrictionBase != null && restrictionBase.equals(resolveQName(generated, generatedType));
+    }
 
-        Element schema = original.getOwnerDocument().getDocumentElement();
-        Element simpleType = directChildren(schema, "simpleType").stream()
-                .filter(candidate -> candidate.getAttribute("name").equals(originalName.getLocalPart()))
-                .findFirst().orElse(null);
-        if (simpleType == null) {
-            return false;
+    private static QName findSimpleTypeBase(Path schemaPath, QName typeName, Set<Path> visited) throws Exception {
+        Path normalizedPath = schemaPath.toAbsolutePath().normalize();
+        if (!visited.add(normalizedPath)) {
+            return null;
         }
-        Element restriction = directChildren(simpleType, "restriction").stream().findFirst().orElse(null);
-        if (restriction == null || !restriction.hasAttribute("base")) {
-            return false;
+
+        Element schema = parse(normalizedPath).getDocumentElement();
+        String schemaNamespace = schema.getAttribute("targetNamespace");
+        if (schemaNamespace.equals(typeName.getNamespaceURI())) {
+            Element simpleType = directChildren(schema, "simpleType").stream()
+                    .filter(candidate -> candidate.getAttribute("name").equals(typeName.getLocalPart()))
+                    .findFirst().orElse(null);
+            if (simpleType != null) {
+                Element restriction = directChildren(simpleType, "restriction").stream().findFirst().orElse(null);
+                if (restriction != null && restriction.hasAttribute("base")) {
+                    return resolveQName(restriction, restriction.getAttribute("base"));
+                }
+            }
         }
-        return resolveQName(restriction, restriction.getAttribute("base")).equals(resolveQName(generated, generatedType));
+
+        for (Element dependency : directChildren(schema, null)) {
+            String kind = dependency.getLocalName();
+            if (!List.of("import", "include").contains(kind)) {
+                continue;
+            }
+            if ("import".equals(kind)
+                    && !dependency.getAttribute("namespace").equals(typeName.getNamespaceURI())) {
+                continue;
+            }
+            if ("include".equals(kind) && !schemaNamespace.equals(typeName.getNamespaceURI())) {
+                continue;
+            }
+            String location = dependency.getAttribute("schemaLocation");
+            if (location.isBlank()) {
+                continue;
+            }
+            Path dependencyPath = normalizedPath.getParent().resolve(location).normalize();
+            if (Files.isRegularFile(dependencyPath)) {
+                QName base = findSimpleTypeBase(dependencyPath, typeName, visited);
+                if (base != null) {
+                    return base;
+                }
+            }
+        }
+        return null;
     }
 
     private static QName resolveQName(Element context, String lexicalName) {
@@ -330,6 +377,6 @@ final class SchemaMerger {
 
     @FunctionalInterface
     private interface DeclarationMerger {
-        void merge(Document document, Element original, Element generated, Element generatedRoot);
+        void merge(Document document, Element original, Element generated, Element generatedRoot) throws Exception;
     }
 }

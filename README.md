@@ -39,6 +39,6 @@ The reverse pass follows JAXB mapping rules: Java fields must be visible to JAXB
 
 ## Example schemas
 
-The `examples/` directory contains ten domain schemas plus `common-types.xsd`. Billing and logistics import shared currency, country, and postal-code types from the common namespace using `xs:import`; the other schemas demonstrate restrictions, enumerations, documented simple and complex types, attributes, and annotated elements.
+The `examples/` directory contains ten domain schemas plus `common-types.xsd`. Logistics imports eight schemas (common types, customers, catalog, orders, billing, inventory, learning, and support) to demonstrate a wider dependency graph. Billing also imports common currency types. The schemas demonstrate restrictions, enumerations, documented simple and complex types, attributes, and annotations.
 
 The reverse merger targets named JAXB complex types and their sequence elements/attributes. For substantially different schema structures, review the generated output before adopting it as a contract.
