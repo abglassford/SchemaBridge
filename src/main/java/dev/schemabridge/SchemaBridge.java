@@ -7,6 +7,7 @@ import java.lang.reflect.Method;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -62,6 +63,7 @@ public final class SchemaBridge {
             throw new IllegalArgumentException("No .java source files found under " + sourceDirectory);
         }
 
+        List<Path> schemas = SchemaMerger.dependencies(original);
         Path temporaryDirectory = Files.createTempDirectory("schemabridge-");
         try {
             List<String> toolArgs = new ArrayList<>(List.of("-d", temporaryDirectory.toString()));
@@ -71,14 +73,28 @@ public final class SchemaBridge {
             }
             toolArgs.addAll(sourceFiles);
             runTool("com.sun.tools.jxc.SchemaGenerator", toolArgs.toArray(String[]::new));
-            Path generatedSchema = SchemaMerger.findSchemaForNamespace(
-                    temporaryDirectory, SchemaMerger.targetNamespace(original));
-            Files.createDirectories(output.toAbsolutePath().getParent());
-            SchemaMerger.merge(original, generatedSchema, output);
+            Path originalDirectory = original.getParent();
+            Path outputDirectory = output.getParent();
+            for (Path schema : schemas) {
+                Path schemaOutput = schema.equals(original)
+                        ? output
+                        : outputDirectory.resolve(originalDirectory.relativize(schema)).normalize();
+                if (!schemaOutput.startsWith(outputDirectory)) {
+                    throw new IOException("Schema dependency resolves outside output directory: " + schema);
+                }
+                Path generatedSchema = SchemaMerger.findSchemaForNamespace(
+                        temporaryDirectory, SchemaMerger.targetNamespace(schema));
+                if (generatedSchema == null) {
+                    Files.createDirectories(schemaOutput.getParent());
+                    Files.copy(schema, schemaOutput, StandardCopyOption.REPLACE_EXISTING);
+                } else {
+                    SchemaMerger.merge(schema, generatedSchema, schemaOutput);
+                }
+                System.out.println("Updated schema written to " + schemaOutput);
+            }
         } finally {
             deleteTree(temporaryDirectory);
         }
-        System.out.println("Updated schema written to " + output);
     }
 
     private static String compilerClassPath(Path sourceDirectory) throws Exception {

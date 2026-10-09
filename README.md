@@ -16,7 +16,7 @@ mvn test
 ## Generate Java
 
 ```powershell
-mvn compile exec:java "-Dexec.args=to-java examples/customers.xsd target/generated-sources/customers"
+mvn compile exec:java "-Dexec.args=to-java examples/logistics.xsd target/generated-sources/logistics"
 ```
 
 An optional final argument sets the generated Java package:
@@ -30,10 +30,10 @@ mvn compile exec:java "-Dexec.args=to-java examples/catalog.xsd target/generated
 Edit the generated Java mapping, including JAXB annotations and `@XmlType(propOrder)` when applicable, then pass the original schema and the directory containing the Java source files:
 
 ```powershell
-mvn compile exec:java "-Dexec.args=sync-schema examples/customers.xsd target/generated-sources/customers target/roundtrip/customers.xsd"
+mvn compile exec:java "-Dexec.args=sync-schema examples/logistics.xsd target/generated-sources/logistics target/roundtrip/logistics.xsd"
 ```
 
-SchemaBridge runs JAXB schemagen on the Java sources, then merges the generated declarations into a copy of the original schema. Existing `xs:documentation` and `xs:annotation` nodes are retained for matching declarations. New mapped fields, attributes, types, and elements are brought across. The original input file is never modified.
+SchemaBridge runs JAXB schemagen on the Java sources, then merges the generated declarations into copies of the original schema and its local `xs:import`/`xs:include` dependencies. Dependency paths are preserved under the output directory, so the output schema set remains connected. Schemas without generated Java mappings are copied unchanged. Existing `xs:documentation` and `xs:annotation` nodes are retained for matching declarations. New mapped fields, attributes, types, and elements are brought across. The original input files are never modified.
 
 The reverse pass follows JAXB mapping rules: Java fields must be visible to JAXB through annotations or access configuration, and generated classes with `@XmlType(propOrder)` must include newly added properties there. Schema constructs with no Java representation remain from the original XSD.
 

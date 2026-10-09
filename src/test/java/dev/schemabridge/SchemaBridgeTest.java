@@ -32,6 +32,7 @@ class SchemaBridgeTest {
         factory.setNamespaceAware(true);
         Document logistics = factory.newDocumentBuilder().parse(Path.of("examples", "logistics.xsd").toFile());
         assertEquals(8, logistics.getElementsByTagNameNS(XMLConstants.W3C_XML_SCHEMA_NS_URI, "import").getLength());
+        assertEquals(9, SchemaMerger.dependencies(Path.of("examples", "logistics.xsd")).size());
     }
 
     @Test

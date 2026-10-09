@@ -34,6 +34,13 @@ final class SchemaMerger {
         return parse(schema).getDocumentElement().getAttribute("targetNamespace");
     }
 
+    static List<Path> dependencies(Path schema) throws Exception {
+        Path rootSchema = schema.toAbsolutePath().normalize();
+        List<Path> schemas = new ArrayList<>();
+        collectDependencies(rootSchema, rootSchema.getParent(), new HashSet<>(), schemas);
+        return schemas;
+    }
+
     static Path findSchemaForNamespace(Path directory, String namespace) throws Exception {
         try (var paths = Files.walk(directory)) {
             for (Path path : paths.filter(Files::isRegularFile)
@@ -43,7 +50,43 @@ final class SchemaMerger {
                 }
             }
         }
-        throw new IOException("JAXB schemagen did not produce a schema for namespace " + namespace);
+        return null;
+    }
+
+    private static void collectDependencies(Path schema, Path rootDirectory, Set<Path> visited,
+            List<Path> schemas) throws Exception {
+        Path normalizedSchema = schema.toAbsolutePath().normalize();
+        if (!visited.add(normalizedSchema)) {
+            return;
+        }
+        schemas.add(normalizedSchema);
+        Element schemaRoot = parse(normalizedSchema).getDocumentElement();
+        for (Element dependency : directChildren(schemaRoot, null)) {
+            if (!List.of("import", "include").contains(dependency.getLocalName())) {
+                continue;
+            }
+            String location = dependency.getAttribute("schemaLocation");
+            if (location.isBlank()) {
+                continue;
+            }
+            Path dependencyPath;
+            try {
+                URI locationUri = URI.create(location);
+                if (locationUri.isAbsolute()) {
+                    continue;
+                }
+                dependencyPath = normalizedSchema.getParent().resolve(locationUri.getPath()).normalize();
+            } catch (IllegalArgumentException exception) {
+                dependencyPath = normalizedSchema.getParent().resolve(location).normalize();
+            }
+            if (!dependencyPath.startsWith(rootDirectory)) {
+                throw new IOException("Schema dependency resolves outside schema directory: " + dependencyPath);
+            }
+            if (!Files.isRegularFile(dependencyPath)) {
+                throw new IOException("Schema dependency not found: " + dependencyPath);
+            }
+            collectDependencies(dependencyPath, rootDirectory, visited, schemas);
+        }
     }
 
     static void merge(Path originalPath, Path generatedPath, Path outputPath) throws Exception {
